@@ -5,10 +5,14 @@ Date:     2018-12-04
 Homepage: https://github.com/jansauer/home-assistant_config/tree/master/config/custom_components/airco2ntrol
 Author:   Jan Sauer
 
+Date:     2022-10-10
+Modified:   Leonhard Lerbs
+
 """
 import fcntl
 import logging
 import voluptuous as vol
+from os import listdir
 
 from homeassistant.components.sensor import PLATFORM_SCHEMA
 from homeassistant.const import (DEVICE_CLASS_TEMPERATURE, TEMP_CELSIUS)
@@ -17,14 +21,23 @@ from homeassistant.helpers.entity import Entity
 _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_DEVICE = '/dev/hidraw0'
+
 IDX_FNK = 0
 IDX_MSB = 1
 IDX_LSB = 2
 IDX_CHK = 3
 
+HIDIOCSFEATURE_9 = 0xC0094806
+
+def getDevicePath():
+    path_end = next((x for x in listdir('/dev/') if 'hidraw' in x), None)
+    if path_end is None:
+        raise IOError
+    return '/dev/' + path_end
+
 def setup_platform(hass, config, add_entities, discovery_info=None):
     """Set up the AirCO2ntrol component."""
-    state = AirCO2ntrolReader(DEFAULT_DEVICE)
+    state = AirCO2ntrolReader()
     add_entities([
       AirCO2ntrolCarbonDioxideSensor(state),
       AirCO2ntrolTemperatureSensor(state)
@@ -32,25 +45,24 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
     return True
 
 
-class AirCO2ntrolReader():
+class AirCO2ntrolReader:
     """A AirCO2ntrol sensor reader."""
 
-    def __init__(self, device):
+    def __init__(self):
         """Initialize the reader."""
         self.carbonDioxide = None
         self.temperature = None
-        self._fp = open(device, 'ab+', 0)
-        HIDIOCSFEATURE_9 = 0xC0094806
-        fcntl.ioctl(self._fp, HIDIOCSFEATURE_9, bytearray.fromhex('00 c4 c6 c0 92 40 23 dc 96'))
+        self._fp = None
 
     def update(self):
         """Poll latest sensor data."""
         carbonDioxide = None
         temperature = None
-        for retry in range(10):
-            data = self.__poll()
+
+        for pollDeviceForCorrectData in range(10):
+            data = self.__save_poll()
             if data is None:
-                continue
+                break
 
             _LOGGER.info("polled hex data = " + hexArrayToString(data))
 
@@ -62,22 +74,36 @@ class AirCO2ntrolReader():
                 temperature = value / 16.0 - 273.15
 
             if carbonDioxide is not None and temperature is not None:
-                self.temperature = temperature
-                self.carbonDioxide = carbonDioxide
-                _LOGGER.info(' co2 and temp updated')
                 break
 
-        _LOGGER.info('temperature = ' + str(self.temperature))
-        _LOGGER.info('carbonDioxide = ' + str(self.carbonDioxide))
+        self.temperature = temperature
+        self.carbonDioxide = carbonDioxide
+        _LOGGER.info('temperature measurement = ' + str(self.temperature))
+        _LOGGER.info('carbonDioxide measurement = ' + str(self.carbonDioxide))
 
-    def __poll(self):
-        data = list(e for e in self._fp.read(5))
+
+
+    def __save_poll(self):
+        try:
+            data = list(e for e in self._fp.read(5))
+        except:
+            try:
+                self.__recover()
+                data = list(e for e in self._fp.read(5))
+            except:
+                _LOGGER.warning('Connection to CO2 Sensor failed')
+                return None
 
         if ((data[IDX_MSB] + data[IDX_LSB] + data[IDX_FNK]) % 256) != data[IDX_CHK]:
-            _LOGGER.info('Checksum incorrect. Values:' + hexArrayToString(data))
+            _LOGGER.error('Checksum incorrect. Values:' + hexArrayToString(data))
             return None
 
         return data
+
+    def __recover(self):
+        self._fp = open(getDevicePath(), 'ab+', 0)
+        fcntl.ioctl(self._fp, HIDIOCSFEATURE_9, bytearray.fromhex('00 c4 c6 c0 92 40 23 dc 96'))
+
 
 
 def hexArrayToString(array):
