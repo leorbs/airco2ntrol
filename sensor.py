@@ -6,16 +6,18 @@ Homepage: https://github.com/jansauer/home-assistant_config/tree/master/config/c
 Author:   Jan Sauer
 
 Date:     2022-10-10
-Modified:   Leonhard Lerbs
+Modified: Leonhard Lerbs
 
+Date:     2024-02-15
+Modified: Pepijn de Vos
 """
 import fcntl
 import logging
 import voluptuous as vol
 from os import listdir
 
-from homeassistant.components.sensor import PLATFORM_SCHEMA
-from homeassistant.const import (DEVICE_CLASS_TEMPERATURE, TEMP_CELSIUS)
+from homeassistant.components.sensor import PLATFORM_SCHEMA, SensorDeviceClass
+from homeassistant.const import UnitOfTemperature, CONCENTRATION_PARTS_PER_MILLION, PERCENTAGE
 from homeassistant.helpers.entity import Entity
 
 _LOGGER = logging.getLogger(__name__)
@@ -40,7 +42,8 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
     state = AirCO2ntrolReader()
     add_entities([
       AirCO2ntrolCarbonDioxideSensor(state),
-      AirCO2ntrolTemperatureSensor(state)
+      AirCO2ntrolTemperatureSensor(state),
+      AirCO2ntrolHumiditySensor(state)
     ])
     return True
 
@@ -52,12 +55,14 @@ class AirCO2ntrolReader:
         """Initialize the reader."""
         self.carbonDioxide = None
         self.temperature = None
+        self.humidity = None
         self._fp = None
 
     def update(self):
         """Poll latest sensor data."""
         carbonDioxide = None
         temperature = None
+        humidity = None
 
         for pollDeviceForCorrectData in range(10):
             data = self.__save_poll()
@@ -72,14 +77,18 @@ class AirCO2ntrolReader:
                 carbonDioxide = value
             elif data[0] == 0x42:
                 temperature = value / 16.0 - 273.15
+            elif data[0] == 0x41:
+                humidity = value / 100
 
-            if carbonDioxide is not None and temperature is not None:
+            if carbonDioxide is not None and temperature is not None and humidity is not None:
                 break
 
         self.temperature = temperature
         self.carbonDioxide = carbonDioxide
+        self.humidity = humidity
         _LOGGER.info('temperature measurement = ' + str(self.temperature))
         _LOGGER.info('carbonDioxide measurement = ' + str(self.carbonDioxide))
+        _LOGGER.info('humidity measurement = ' + str(self.humidity))
 
 
 
@@ -130,12 +139,12 @@ class AirCO2ntrolCarbonDioxideSensor(Entity):
     @property
     def unit_of_measurement(self):
         """Return the units of measurement."""
-        return "ppm"
+        return CONCENTRATION_PARTS_PER_MILLION
 
     @property
     def device_class(self):
         """Return the class of this sensor."""
-        return 'co2'
+        return SensorDeviceClass.CO2
 
     @property
     def icon(self):
@@ -167,17 +176,54 @@ class AirCO2ntrolTemperatureSensor(Entity):
     @property
     def unit_of_measurement(self):
         """Return the units of measurement."""
-        return TEMP_CELSIUS
+        return UnitOfTemperature.CELSIUS
 
     @property
     def device_class(self):
         """Return the class of this sensor."""
-        return DEVICE_CLASS_TEMPERATURE
+        return SensorDeviceClass.TEMPERATURE
 
     @property
     def icon(self):
         """Return the icon of device based on its type."""
         return 'mdi:thermometer'
+
+    def update(self):
+        """Get the latest data and updates the state."""
+        _LOGGER.debug("Updating airco2ntrol for temperature")
+        self._state.update()
+
+class AirCO2ntrolHumiditySensor(Entity):
+    """A AirCO2ntrol humidity sensor."""
+
+    def __init__(self, state):
+        """Initialize the sensor."""
+        self._state = state
+
+    @property
+    def name(self):
+        """Return the name of the sensor."""
+        return 'AirCO2ntrol Humidity'
+
+    @property
+    def state(self):
+        """Return the state of the sensor."""
+        return self._state.humidity
+
+    @property
+    def unit_of_measurement(self):
+        """Return the units of measurement."""
+        return PERCENTAGE
+
+    @property
+    def device_class(self):
+        """Return the class of this sensor."""
+        return SensorDeviceClass.HUMIDITY
+
+    @property
+    def icon(self):
+        """Return the icon of device based on its type."""
+        return 'mdi:water-percent'
 
     def update(self):
         """Get the latest data and updates the state."""
