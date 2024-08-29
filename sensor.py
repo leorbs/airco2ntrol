@@ -35,10 +35,11 @@ def getDevicePath():
     path_end = next((x for x in listdir('/dev/') if 'hidraw' in x), None)
     if path_end is None:
         raise IOError
+    _LOGGER.debug("Trying device: " + '/dev/' + path_end)
     return '/dev/' + path_end
 
 def setup_platform(hass, config, add_entities, discovery_info=None):
-    """Set up the AirCO2ntrol component."""
+    _LOGGER.debug("Set up the AirCO2ntrol component.")
     state = AirCO2ntrolReader()
     add_entities([
       AirCO2ntrolCarbonDioxideSensor(state),
@@ -59,20 +60,21 @@ class AirCO2ntrolReader:
         self._fp = None
 
     def update(self):
-        """Poll latest sensor data."""
+        _LOGGER.debug("Poll latest sensor data.")
         carbonDioxide = None
         temperature = None
         humidity = None
 
         for pollDeviceForCorrectData in range(10):
+            _LOGGER.debug("Device " + str(pollDeviceForCorrectData))
             data = self.__save_poll()
             if data is None:
                 break
 
-            _LOGGER.info("polled hex data = " + hexArrayToString(data))
+            _LOGGER.debug("polled hex data = " + hexArrayToString(data))
 
             value = (data[IDX_MSB] << 8) | data[IDX_LSB]
-            _LOGGER.info('value is: ' + str(value))
+            _LOGGER.debug('value is: ' + str(value))
             if data[0] == 0x50:
                 carbonDioxide = value
             elif data[0] == 0x42:
@@ -86,9 +88,7 @@ class AirCO2ntrolReader:
         self.temperature = temperature
         self.carbonDioxide = carbonDioxide
         self.humidity = humidity
-        _LOGGER.info('temperature measurement = ' + str(self.temperature))
-        _LOGGER.info('carbonDioxide measurement = ' + str(self.carbonDioxide))
-        _LOGGER.info('humidity measurement = ' + str(self.humidity))
+        _LOGGER.debug('AirCO2ntrol measurement: temperature = ' + str(self.temperature)+ ', carbonDioxide = ' + str(self.carbonDioxide) + ', humidity = ' + str(self.humidity))
 
 
 
@@ -110,6 +110,7 @@ class AirCO2ntrolReader:
         return data
 
     def __recover(self):
+        _LOGGER.info("Trying recover()")
         self._fp = open(getDevicePath(), 'ab+', 0)
         fcntl.ioctl(self._fp, HIDIOCSFEATURE_9, bytearray.fromhex('00 c4 c6 c0 92 40 23 dc 96'))
 
@@ -153,7 +154,7 @@ class AirCO2ntrolCarbonDioxideSensor(Entity):
 
     def update(self):
         """Get the latest data and updates the state."""
-        _LOGGER.debug("Updating airco2ntrol for carbon dioxide")
+        _LOGGER.debug("Updating AirCO2ntrol for carbon dioxide")
         self._state.update()
       
 class AirCO2ntrolTemperatureSensor(Entity):
@@ -190,7 +191,7 @@ class AirCO2ntrolTemperatureSensor(Entity):
 
     def update(self):
         """Get the latest data and updates the state."""
-        _LOGGER.debug("Updating airco2ntrol for temperature")
+        _LOGGER.debug("Updating AirCO2ntrol for temperature")
         self._state.update()
 
 class AirCO2ntrolHumiditySensor(Entity):
@@ -227,5 +228,5 @@ class AirCO2ntrolHumiditySensor(Entity):
 
     def update(self):
         """Get the latest data and updates the state."""
-        _LOGGER.debug("Updating airco2ntrol for temperature")
+        _LOGGER.debug("Updating AirCO2ntrol for temperature")
         self._state.update()
