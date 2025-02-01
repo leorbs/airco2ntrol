@@ -11,19 +11,8 @@ Thx [Henryk Plötz](https://hackaday.io/henryk). Code for this HA integration or
 But because the "Decryption" part isn't necessary anymore with the current generation of devices I removed that. 
 
 Upload this folder to `custom_components` in your configuration folder (using Samba or FTP addons)
-Add the following platform to your `configuration.yaml`:
-```
-# Example configuration.yaml entry
-sensor:
-  - platform: airco2ntrol
-```
 
 ![component screenshot](screenshot.png)
-
-## CONFIGURATION VARIABLES
-
-In the sensor.py following variable can be changed if you have multiple hidraw devices connected:
-- **device** Hidraw device node. (default = '/dev/hidraw0')
 
 ## Developers notice
 The pdf in this repository describes the usb protocol. There exists more than just co2 and temperature readings.
