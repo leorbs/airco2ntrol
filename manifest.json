@@ -1,9 +1,10 @@
 {
   "domain": "airco2ntrol",
   "name": "airco2ntrol custom component",
-  "documentation": "https://github.com/jansauer/home-assistant_config/tree/master/config/custom_components/airco2ntrol",
+  "documentation": "https://github.com/leorbs/airco2ntrol",
   "requirements": [],
   "dependencies": [],
   "codeowners": ["@leorbs"],
-  "version": "0.1.0"
+  "version": "0.2.0",
+  "config_flow": true
 }
