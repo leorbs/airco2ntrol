@@ -11,6 +11,7 @@ import datetime
 
 from homeassistant.components.sensor import PLATFORM_SCHEMA, SensorDeviceClass, SensorEntity
 from homeassistant.const import UnitOfTemperature, CONCENTRATION_PARTS_PER_MILLION, PERCENTAGE
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, CoordinatorEntity
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.core import HomeAssistant
@@ -33,8 +34,33 @@ IDX_CHK = 3
 HID_KEYWORDS = ["Holtek", "zyTemp"]  # Adjust based on your actual device name
 
 
+def get_device_unique_id(file):
+    """Get a unique ID for the HID device based on available attributes."""
+    try:
+        hid_uniq = None
+        hid_id = None
+
+        for line in file:
+            if line.startswith("HID_UNIQ="):
+                hid_uniq = line.strip().split("=")[1]
+            elif line.startswith("HID_ID="):
+                parts = line.strip().split("=")[1].split(":")
+                if len(parts) >= 3:
+                    hid_id = f"{parts[1]}:{parts[2]}"  # Extract VID:PID
+
+        # Prefer HID_UNIQ if available
+        if hid_uniq and hid_uniq != "":
+            return hid_uniq
+        elif hid_id:
+            return hid_id
+
+    except FileNotFoundError:
+        _LOGGER.warning(f"Cannot read {file}. Cannot determine unique ID of device")
+        raise
+
+
 def get_device_path():
-    """Find the correct HID device by reading its HID_NAME from sysfs."""
+    """Find the correct HID device and return (device_path, unique_id)."""
     try:
         for device in os.listdir('/sys/class/hidraw/'):
             uevent_path = f"/sys/class/hidraw/{device}/device/uevent"
@@ -44,24 +70,18 @@ def get_device_path():
                     for line in file:
                         if line.startswith("HID_NAME="):
                             device_name = line.strip().split("=")[1]
-                            _LOGGER.debug(f"Found HID device: {device_name} at {device}")
-
-                            # Check if the device matches the expected keywords
                             if any(keyword in device_name for keyword in HID_KEYWORDS):
-                                _LOGGER.info(f"Using device: {device_name} -> /dev/{device}")
-                                return f"/dev/{device}"
+                                unique_id = get_device_unique_id(file)
+                                return f"/dev/{device}", unique_id
 
             except FileNotFoundError:
                 _LOGGER.warning(f"Cannot read {uevent_path}, skipping.")
 
-        raise FileNotFoundError("No matching HID device found. Valid keywords for HID_NAME are " + str(HID_KEYWORDS))
+        raise FileNotFoundError("No matching HID device found.")
 
     except Exception as e:
         _LOGGER.error(f"Error finding HID device: {e}")
-        return None
-
-class DeviceNotFoundException(Exception):
-    pass
+        raise
 
 class AirCO2ntrolReader:
     """Class to interact with the AirCO2ntrol sensor."""
@@ -72,20 +92,16 @@ class AirCO2ntrolReader:
         self.temperature = None
         self.humidity = None
         self._fp = None
-        # initial connection
-        self._recover()
 
     def _recover(self):
         """Attempt to recover the connection to the device."""
         try:
-            self.device_path = get_device_path()
-            if not self.device_path:
-                raise DeviceNotFoundException("could not find device")
-            _LOGGER.info("Trying to recover connection...")
+            self.device_path, _ = get_device_path()
+            _LOGGER.info("Trying to initialize connection...")
             self._fp = open(self.device_path, 'ab+', 0)
             fcntl.ioctl(self._fp, HIDIOCSFEATURE_9, bytearray.fromhex('00 c4 c6 c0 92 40 23 dc 96'))
-        except DeviceNotFoundException as e:
-            _LOGGER.warning(f"{e}")
+        except FileNotFoundError as e:
+            _LOGGER.warning(f"Did not find HID device. Is it plugged in? Message: {e}")
             self._fp = None
         except Exception as e:
             _LOGGER.error(f"Device initialization failed: {e}")
@@ -94,9 +110,15 @@ class AirCO2ntrolReader:
     def update(self):
         """Poll the latest sensor data."""
         if not self._fp:
-            _LOGGER.warning("No connected device found. Trying to find connected devices:")
+            _LOGGER.warning("Currently no devce connected. Trying to find and connect to CO2 Device.")
             self._recover()
-            return None
+            if not self._fp:
+                return {
+                    "co2": None,
+                    "temperature": None,
+                    "humidity": None,
+                    "available": False
+                }
 
         _LOGGER.debug("Polling latest sensor data.")
         got_carbon_dioxide = None
@@ -107,6 +129,10 @@ class AirCO2ntrolReader:
             if data:
                 value = (data[IDX_MSB] << 8) | data[IDX_LSB]
                 if data[IDX_FNK] == 0x50:
+                    if value > 10000:
+                        # sometimes the first read of this value is something around 25k.
+                        # This is a safety to filter such unplausible readings
+                        continue
                     self.carbon_dioxide = value
                     got_carbon_dioxide = True
                 elif data[IDX_FNK] == 0x42:
@@ -119,10 +145,11 @@ class AirCO2ntrolReader:
                 if got_carbon_dioxide and got_temperature and got_humidity:
                     break  # We got all values
         return {
-            # return all values, even if they are the most recent
+            # return all values, even if they are not the most recent
             "co2": self.carbon_dioxide,
             "temperature": self.temperature,
-            "humidity": self.humidity
+            "humidity": self.humidity,
+            "available": True
         }
 
     def _safe_poll(self):
@@ -142,6 +169,11 @@ class AirCO2ntrolReader:
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback):
     """Set up sensors from a config entry using the new DataUpdateCoordinator."""
 
+    try:
+        _, unique_id = await hass.async_add_executor_job(get_device_path)
+    except Exception as e:
+        raise ConfigEntryNotReady(f"Could not setup device yet: {e}")
+
     reader = AirCO2ntrolReader()
 
     async def async_update():
@@ -159,22 +191,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     await coordinator.async_config_entry_first_refresh()
 
     async_add_entities([
-        AirCO2ntrolCarbonDioxideSensor(coordinator),
-        AirCO2ntrolTemperatureSensor(coordinator),
-        AirCO2ntrolHumiditySensor(coordinator)
+        AirCO2ntrolCarbonDioxideSensor(coordinator, unique_id),
+        AirCO2ntrolTemperatureSensor(coordinator, unique_id),
+        AirCO2ntrolHumiditySensor(coordinator, unique_id)
     ])
 
 
 class AirCO2ntrolSensor(CoordinatorEntity, SensorEntity):
     """Base class for AirCO2ntrol sensors."""
 
-    def __init__(self, coordinator, name, sensor_type, unit, icon, device_class):
+    def __init__(self, coordinator, name, sensor_type, unit, icon, device_class, unique_id):
         """Initialize the sensor."""
         super().__init__(coordinator)
         self._attr_name = name
         self._attr_native_unit_of_measurement = unit
         self._attr_icon = icon
         self._attr_device_class = device_class
+        self._attr_unique_id = f"{unique_id}-{sensor_type}"
         self.sensor_type = sensor_type
 
     @property
@@ -182,44 +215,50 @@ class AirCO2ntrolSensor(CoordinatorEntity, SensorEntity):
         """Return the current sensor state."""
         return self.coordinator.data.get(self.sensor_type)
 
+    @property
+    def available(self) -> bool:
+        return self.coordinator.data.get("available")
 
 class AirCO2ntrolCarbonDioxideSensor(AirCO2ntrolSensor):
     """CO2 Sensor."""
 
-    def __init__(self, coordinator):
+    def __init__(self, coordinator, unique_id):
         super().__init__(
             coordinator,
             name="AirCO2ntrol Carbon Dioxide",
             sensor_type="co2",
             unit=CONCENTRATION_PARTS_PER_MILLION,
             icon="mdi:molecule-co2",
-            device_class=SensorDeviceClass.CO2
+            device_class=SensorDeviceClass.CO2,
+            unique_id=unique_id
         )
 
 
 class AirCO2ntrolTemperatureSensor(AirCO2ntrolSensor):
     """Temperature Sensor."""
 
-    def __init__(self, coordinator):
+    def __init__(self, coordinator, unique_id):
         super().__init__(
             coordinator,
             name="AirCO2ntrol Temperature",
             sensor_type="temperature",
             unit=UnitOfTemperature.CELSIUS,
             icon="mdi:thermometer",
-            device_class=SensorDeviceClass.TEMPERATURE
+            device_class=SensorDeviceClass.TEMPERATURE,
+            unique_id=unique_id
         )
 
 
 class AirCO2ntrolHumiditySensor(AirCO2ntrolSensor):
     """Humidity Sensor."""
 
-    def __init__(self, coordinator):
+    def __init__(self, coordinator, unique_id):
         super().__init__(
             coordinator,
             name="AirCO2ntrol Humidity",
             sensor_type="humidity",
             unit=PERCENTAGE,
             icon="mdi:water-percent",
-            device_class=SensorDeviceClass.HUMIDITY
+            device_class=SensorDeviceClass.HUMIDITY,
+            unique_id=unique_id
         )

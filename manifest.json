@@ -1,6 +1,6 @@
 {
   "domain": "airco2ntrol",
-  "name": "airco2ntrol custom component",
+  "name": "airco2ntrol CO2 Sensor",
   "documentation": "https://github.com/leorbs/airco2ntrol",
   "requirements": [],
   "dependencies": [],
