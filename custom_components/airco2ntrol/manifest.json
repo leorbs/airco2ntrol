@@ -1,12 +1,12 @@
 {
   "domain": "airco2ntrol",
   "name": "airco2ntrol CO2 Sensor",
-  "documentation": "https://github.com/leorbs/airco2ntrol",
-  "requirements": [],
-  "dependencies": [],
   "codeowners": ["@leorbs"],
-  "version": "0.3.0",
-  "issue_tracker": "https://github.com/leorbs/airco2ntrol/issues",
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/leorbs/airco2ntrol",
   "iot_class": "local_polling",
-  "config_flow": true
+  "issue_tracker": "https://github.com/leorbs/airco2ntrol/issues",
+  "requirements": [],
+  "version": "0.3.0"
 }
