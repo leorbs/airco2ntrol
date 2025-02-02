@@ -11,19 +11,23 @@ Thx [Henryk Plötz](https://hackaday.io/henryk). Code for this HA integration or
 But because the "Decryption" part isn't necessary anymore with the current generation of devices I removed that. 
 
 ## Setup
-0. OPTIONAL: If you had the old version installed, remove ``airco2ntrol`` from your `configuration.yaml`
-1. Upload this folder to `custom_components` in your configuration folder (using Samba or FTP addons).
+If you had the old version from this repository installed, remove ``airco2ntrol`` from your `configuration.yaml`
+### Automatic
+(soon) Visit HACS and install the airco2ntrol from there
+
+### Manual
+1. Upload the `airco2ntrol` folder to your `custom_components` folder (using Samba or FTP addons).
 It should look like `custom_components/airco2ntrol/`.
 2. Restart your Home Assistant.
 3. Go to your Integrations, click on "ADD INTEGRATION" and search for "`co2`"
 4. choose ``airco2ntrol`` and click on "SUBMIT"
-5. If you have the CO2 sensor attached, it should create 3 entities
+5. The integration should create 3 entities as soon as you have the CO2 sensor attached to your server
 
 ## Functionality
 This is how the sensors measurement might look. _Please note that I do not do enough "stosslueften"
 ([German Wiki: run this through your favourite translator](https://de.wikipedia.org/wiki/L%C3%BCftung#Sto%C3%9Fl%C3%BCftung))._
 
-![component screenshot](screenshot.png)
+![component screenshot](images/screenshot.png)
 
 The Integration should provide:
  - CO2 values
