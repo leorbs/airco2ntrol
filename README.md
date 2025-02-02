@@ -13,11 +13,15 @@ But because the "Decryption" part isn't necessary anymore with the current gener
 ## Setup
 If you had the old version from this repository installed, remove ``airco2ntrol`` from your `configuration.yaml`
 ### Automatic
-(soon) Visit HACS and install the airco2ntrol from there
+(soon) Visit your HACS and install the airco2ntrol Integration from there
+
+Until this Repository gets officially released in the HACS, you can add it 
+manually by adding the "https://github.com/leorbs/airco2ntrol" repository to the custom
+repositories of your HACS
 
 ### Manual
-1. Upload the `airco2ntrol` folder to your `custom_components` folder (using Samba or FTP addons).
-It should look like `custom_components/airco2ntrol/`.
+1. Upload the `custom_components/airco2ntrol` folder to your `custom_components` folder (using Samba or FTP addons).
+It should look like `config/custom_components/airco2ntrol/`.
 2. Restart your Home Assistant.
 3. Go to your Integrations, click on "ADD INTEGRATION" and search for "`co2`"
 4. choose ``airco2ntrol`` and click on "SUBMIT"
