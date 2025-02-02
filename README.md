@@ -20,8 +20,8 @@ It should look like `custom_components/airco2ntrol/`.
 5. If you have the CO2 sensor attached, it should create 3 entities
 
 ## Functionality
-This is how the sensors measurement might look. Please note that I do not enough stosslueften
-([German Wiki: run this through your favourite translator](https://de.wikipedia.org/wiki/L%C3%BCftung#Sto%C3%9Fl%C3%BCftung)).
+This is how the sensors measurement might look. _Please note that I do not do enough "stosslueften"
+([German Wiki: run this through your favourite translator](https://de.wikipedia.org/wiki/L%C3%BCftung#Sto%C3%9Fl%C3%BCftung))._
 
 ![component screenshot](screenshot.png)
 
