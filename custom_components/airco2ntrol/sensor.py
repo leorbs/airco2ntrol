@@ -181,8 +181,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         return await hass.async_add_executor_job(reader.update)
 
     coordinator = DataUpdateCoordinator(
-        hass,
-        _LOGGER,
+        hass=hass,
+        logger=_LOGGER,
         name="AirCO2ntrol",
         update_method=async_update,
         update_interval=POLL_INTERVAL_TIMEDELTA
@@ -208,6 +208,7 @@ class AirCO2ntrolSensor(CoordinatorEntity, SensorEntity):
         self._attr_icon = icon
         self._attr_device_class = device_class
         self._attr_unique_id = f"{unique_id}-{sensor_type}"
+        self._attr_force_update = True
         self.sensor_type = sensor_type
 
     @property
@@ -218,6 +219,7 @@ class AirCO2ntrolSensor(CoordinatorEntity, SensorEntity):
     @property
     def available(self) -> bool:
         return self.coordinator.data.get("available")
+
 
 class AirCO2ntrolCarbonDioxideSensor(AirCO2ntrolSensor):
     """CO2 Sensor."""
