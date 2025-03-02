@@ -17,7 +17,7 @@ If you had the old version from this repository installed, remove ``airco2ntrol`
 
 Until this Repository gets officially released in the HACS, you can add it 
 manually by adding the "https://github.com/leorbs/airco2ntrol" repository to the custom
-repositories of your HACS
+repositories of your HACS. After that follow from step 2 from the "Manual" section below.
 
 ### Manual
 1. Upload the `custom_components/airco2ntrol` folder to your `custom_components` folder (using Samba or FTP addons).
@@ -28,8 +28,7 @@ It should look like `config/custom_components/airco2ntrol/`.
 5. The integration should create 3 entities as soon as you have the CO2 sensor attached to your server
 
 ## Functionality
-This is how the sensors measurement might look. _Please note that I do not do enough "stosslueften"
-([German Wiki: run this through your favourite translator](https://de.wikipedia.org/wiki/L%C3%BCftung#Sto%C3%9Fl%C3%BCftung))._
+This is how the sensors measurement looks. 
 
 ![component screenshot](images/screenshot.png)
 
