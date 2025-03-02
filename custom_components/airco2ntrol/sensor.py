@@ -22,7 +22,7 @@ _LOGGER = logging.getLogger(__name__)
 HIDIOCSFEATURE_9 = 0xC0094806
 
 
-POLL_INTERVAL = 10  # seconds
+POLL_INTERVAL = 20  # seconds
 POLL_INTERVAL_TIMEDELTA = datetime.timedelta(seconds=POLL_INTERVAL)
 
 IDX_FNK = 0
@@ -110,7 +110,7 @@ class AirCO2ntrolReader:
     def update(self):
         """Poll the latest sensor data."""
         if not self._fp:
-            _LOGGER.warning("Currently no devce connected. Trying to find and connect to CO2 Device.")
+            _LOGGER.info("Currently no device connected. Trying to find and connect to CO2 Device.")
             self._recover()
             if not self._fp:
                 return {
@@ -124,14 +124,14 @@ class AirCO2ntrolReader:
         got_carbon_dioxide = None
         got_temperature = None
         got_humidity = None
-        for _ in range(5):  # Try a few times
+        for _ in range(10):  # Try a few times
             data = self._safe_poll()
             if data:
                 value = (data[IDX_MSB] << 8) | data[IDX_LSB]
                 if data[IDX_FNK] == 0x50:
                     if value > 10000:
                         # sometimes the first read of this value is something around 25k.
-                        # This is a safety to filter such unplausible readings
+                        # This is a safety to filter such implausible readings
                         continue
                     self.carbon_dioxide = value
                     got_carbon_dioxide = True
@@ -144,6 +144,7 @@ class AirCO2ntrolReader:
 
                 if got_carbon_dioxide and got_temperature and got_humidity:
                     break  # We got all values
+        _LOGGER.debug(f"Got new values for carbon_dioxide:{got_carbon_dioxide} temperature:{got_temperature} humidity:{got_humidity}")
         return {
             # return all values, even if they are not the most recent
             "co2": self.carbon_dioxide,
@@ -177,8 +178,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     reader = AirCO2ntrolReader()
 
     async def async_update():
-        """Fetch data asynchronously."""
-        return await hass.async_add_executor_job(reader.update)
+        _LOGGER.info("async_update called")
+        data = await hass.async_add_executor_job(reader.update)
+        _LOGGER.debug(f"Fetched sensor data: {data}")
+        return data
 
     coordinator = DataUpdateCoordinator(
         hass=hass,
@@ -208,13 +211,15 @@ class AirCO2ntrolSensor(CoordinatorEntity, SensorEntity):
         self._attr_icon = icon
         self._attr_device_class = device_class
         self._attr_unique_id = f"{unique_id}-{sensor_type}"
-        self._attr_force_update = True
         self.sensor_type = sensor_type
 
     @property
     def native_value(self):
         """Return the current sensor state."""
-        return self.coordinator.data.get(self.sensor_type)
+        value = self.coordinator.data.get(self.sensor_type)
+        _LOGGER.debug(f"Sensor {self._attr_unique_id} updated: {value}")
+        return value
+
 
     @property
     def available(self) -> bool:
