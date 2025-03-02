@@ -17,7 +17,7 @@ If you had the old version from this repository installed, remove ``airco2ntrol`
 
 Until this Repository gets officially released in the HACS, you can add it 
 manually by adding the "https://github.com/leorbs/airco2ntrol" repository to the custom
-repositories of your HACS. After that follow step 2 from the "Manual" section below.
+repositories of your HACS. After that follow from step 2 from the "Manual" section below.
 
 ### Manual
 1. Upload the `custom_components/airco2ntrol` folder to your `custom_components` folder (using Samba or FTP addons).
