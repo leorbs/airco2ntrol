@@ -9,13 +9,15 @@ import logging
 import os
 import datetime
 
-from homeassistant.components.sensor import PLATFORM_SCHEMA, SensorDeviceClass, SensorEntity
+from homeassistant.components.sensor import  SensorDeviceClass, SensorEntity
 from homeassistant.const import UnitOfTemperature, CONCENTRATION_PARTS_PER_MILLION, PERCENTAGE
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, CoordinatorEntity
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
+
+from custom_components.airco2ntrol.SensorReader import SensorReader
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -25,11 +27,8 @@ HIDIOCSFEATURE_9 = 0xC0094806
 POLL_INTERVAL = 20  # seconds
 POLL_INTERVAL_TIMEDELTA = datetime.timedelta(seconds=POLL_INTERVAL)
 
-IDX_FNK = 0
-IDX_MSB = 1
-IDX_LSB = 2
-IDX_CHK = 3
 
+CONVERGENCE_SPEED = 20
 
 HID_KEYWORDS = ["Holtek", "zyTemp"]  # Adjust based on your actual device name
 
@@ -91,28 +90,30 @@ class AirCO2ntrolReader:
         self.carbon_dioxide = None
         self.temperature = None
         self.humidity = None
-        self._fp = None
+        self._sensorReader = None
 
     def _recover(self):
         """Attempt to recover the connection to the device."""
         try:
             self.device_path, _ = get_device_path()
             _LOGGER.info("Trying to initialize connection...")
-            self._fp = open(self.device_path, 'ab+', 0)
-            fcntl.ioctl(self._fp, HIDIOCSFEATURE_9, bytearray.fromhex('00 c4 c6 c0 92 40 23 dc 96'))
+            _fp = open(self.device_path, 'ab+', 0)
+            _LOGGER.info("Setting connection mode...")
+            fcntl.ioctl(_fp, HIDIOCSFEATURE_9, bytearray.fromhex('00 c4 c6 c0 92 40 23 dc 96'))
+            self._sensorReader = SensorReader(_fp)
         except FileNotFoundError as e:
             _LOGGER.warning(f"Did not find HID device. Is it plugged in? Message: {e}")
-            self._fp = None
+            self._sensorReader = None
         except Exception as e:
             _LOGGER.error(f"Device initialization failed: {e}")
-            self._fp = None
+            self._sensorReader = None
 
     def update(self):
         """Poll the latest sensor data."""
-        if not self._fp:
+        if not self._sensorReader:
             _LOGGER.info("Currently no device connected. Trying to find and connect to CO2 Device.")
             self._recover()
-            if not self._fp:
+            if not self._sensorReader:
                 return {
                     "co2": None,
                     "temperature": None,
@@ -124,26 +125,27 @@ class AirCO2ntrolReader:
         got_carbon_dioxide = None
         got_temperature = None
         got_humidity = None
-        for _ in range(10):  # Try a few times
-            data = self._safe_poll()
-            if data:
-                value = (data[IDX_MSB] << 8) | data[IDX_LSB]
-                if data[IDX_FNK] == 0x50:
-                    if value > 10000:
-                        # sometimes the first read of this value is something around 25k.
-                        # This is a safety to filter such implausible readings
-                        continue
-                    self.carbon_dioxide = value
-                    got_carbon_dioxide = True
-                elif data[IDX_FNK] == 0x42:
-                    self.temperature = value / 16.0 - 273.15
-                    got_temperature = True
-                elif data[IDX_FNK] == 0x41:
-                    self.humidity = value / 100
-                    got_humidity = True
+        for _ in range(CONVERGENCE_SPEED):  # Try a few times
+            function, value = self._safe_poll_function_and_value()
+            if not function or not value:
+                continue
+            if function == 0x50:
+                if value > 10000:
+                    # sometimes the first read of this value is something around 25k.
+                    # This is a safety to filter such implausible readings
+                    continue
+                self.carbon_dioxide = value
+                got_carbon_dioxide = True
+            elif function == 0x42:
+                self.temperature = value / 16.0 - 273.15
+                got_temperature = True
+            elif function == 0x41:
+                self.humidity = value / 100
+                got_humidity = True
 
-                if got_carbon_dioxide and got_temperature and got_humidity:
-                    break  # We got all values
+            if got_carbon_dioxide and got_temperature and got_humidity:
+                break  # We got all values
+
         _LOGGER.debug(f"Got new values for carbon_dioxide:{got_carbon_dioxide} temperature:{got_temperature} humidity:{got_humidity}")
         return {
             # return all values, even if they are not the most recent
@@ -153,17 +155,12 @@ class AirCO2ntrolReader:
             "available": True
         }
 
-    def _safe_poll(self):
-        """Safely read from the device."""
+    def _safe_poll_function_and_value(self):
         try:
-            data = list(self._fp.read(5))
-            if ((data[IDX_MSB] + data[IDX_LSB] + data[IDX_FNK]) % 256) != data[IDX_CHK]:
-                _LOGGER.error("Checksum incorrect: %s", data)
-                return None
-            return data
+            return self._sensorReader.poll_function_and_value()
         except Exception as e:
             _LOGGER.warning(f"Error reading sensor data. Resetting device connection: {e}")
-            self._fp = None
+            self._sensorReader = None
             return None
 
 
