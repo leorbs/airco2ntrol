@@ -34,6 +34,7 @@ This integration should provide:
  - CO2 values
  - Temperature
  - OPTIONAL: Humidity
+
 Some devices appear to have a humidity readings. If they do so, then the humidity entity will be usable.
 
 ## Notes
