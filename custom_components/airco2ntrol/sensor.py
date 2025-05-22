@@ -16,8 +16,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Coor
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
-
-from custom_components.airco2ntrol.SensorReader import SensorReader
+from custom_components.airco2ntrol.sensor_reader import SensorReader
 
 _LOGGER = logging.getLogger(__name__)
 
