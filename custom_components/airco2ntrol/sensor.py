@@ -143,9 +143,6 @@ class AirCO2ntrolReader:
                 self.humidity = value / 100
                 got_humidity = True
 
-            if got_carbon_dioxide and got_temperature and got_humidity:
-                break  # We got all values
-
         _LOGGER.debug(f"Got new values for carbon_dioxide:{got_carbon_dioxide} temperature:{got_temperature} humidity:{got_humidity}")
         return {
             # return all values, even if they are not the most recent
@@ -161,7 +158,7 @@ class AirCO2ntrolReader:
         except Exception as e:
             _LOGGER.warning(f"Error reading sensor data. Resetting device connection: {e}")
             self._sensorReader = None
-            return None
+            return None, None
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback):
