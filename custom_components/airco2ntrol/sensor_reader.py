@@ -37,6 +37,14 @@ class SensorReader:
         self._fp = fp
         self._mode = None
 
+    def close(self):
+        """Close the underlying file handle."""
+        if self._fp and not self._fp.closed:
+            try:
+                self._fp.close()
+            except OSError:
+                pass
+
     def _init(self):
         _LOGGER.info("Trying to poll in 'normal' mode")
         data = self._poll_normal()
@@ -58,7 +66,7 @@ class SensorReader:
     def poll_function_and_value(self):
         data = self._poll()
         if data is None:
-            return None
+            return None, None
         calculated_value = (data[IDX_MSB] << 8) | data[IDX_LSB]
         return data[IDX_FNK], calculated_value
 
@@ -73,20 +81,24 @@ class SensorReader:
 
     def _poll_normal(self):
         data = list(self._fp.read(5))
+        if len(data) < 5:
+            _LOGGER.warning("Short read in normal mode: got %d bytes", len(data))
+            return None
         if ((data[IDX_MSB] + data[IDX_LSB] + data[IDX_FNK]) % 256) != data[IDX_CHK]:
             _LOGGER.info("Checksum incorrect for 'normal' mode: %s", data)
             return None
-        else:
-            return data
+        return data
 
     def _poll_decrypt(self):
         data = list(self._fp.read(8))
+        if len(data) < 8:
+            _LOGGER.warning("Short read in decrypt mode: got %d bytes", len(data))
+            return None
         decrypted = _decrypt(data)
         if decrypted[4] != 0x0d or (sum(decrypted[:3]) & 0xff) != decrypted[3]:
             _LOGGER.info("Checksum incorrect for 'decrypt' mode: %s", data)
             return None
-        else:
-            return decrypted
+        return decrypted
 
 
 

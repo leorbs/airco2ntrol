@@ -1,7 +1,6 @@
 import logging
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.helpers.discovery import async_load_platform
 
 DOMAIN = "airco2ntrol"
 PLATFORMS = ["sensor"]
@@ -21,4 +20,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Unload an AirCO2ntrol config entry."""
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
+    if unload_ok and entry.entry_id in hass.data.get(DOMAIN, {}):
+        entry_data = hass.data[DOMAIN].pop(entry.entry_id)
+        reader = entry_data.get("reader")
+        if reader is not None:
+            await hass.async_add_executor_job(reader.close)
+
+    return unload_ok
