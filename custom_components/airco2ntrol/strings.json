@@ -1,0 +1,23 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "AirCO2ntrol",
+        "description": "Connect to an AirCO2ntrol CO2 sensor. Make sure the device is plugged in.",
+        "data": {
+          "device_path": "Device path (optional)"
+        },
+        "data_description": {
+          "device_path": "Leave empty for auto-discovery, or enter a custom path like /dev/airco2ntrol"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not find the AirCO2ntrol device. Is it plugged in?",
+      "device_not_found": "Device path does not exist or is not a valid device."
+    },
+    "abort": {
+      "already_configured": "This device is already configured."
+    }
+  }
+}
