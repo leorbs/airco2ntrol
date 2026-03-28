@@ -12,23 +12,30 @@ Some older devices have a static encryption (as [Henryk Plötz](https://hackaday
 This integration is both, with the newer and older devices compatible.
 
 ## Setup
-If you have a very old version from this repository installed, remove ``airco2ntrol`` from your `configuration.yaml`
-### Automatic
-1. Visit your HACS and install the airco2ntrol integration from there
-2. Follow step 2. from the "Manual" Section below
+ 
+> **Upgrading from a very old version?** Remove `airco2ntrol` from your `configuration.yaml` before proceeding.
 
-### Manual
-1. Upload the `custom_components/airco2ntrol` folder to your `custom_components` folder (using Samba or FTP addons).
-It should look like `config/custom_components/airco2ntrol/`.
-2. Restart your Home Assistant.
-3. Go to your Integrations, click on "ADD INTEGRATION" and search for "`co2`"
-4. Choose ``airco2ntrol`` and click on "SUBMIT"
-5. Optionally enter a custom device path (e.g. `/dev/airco2ntrol`), or leave empty for auto-discovery
-6. The integration should create 3 entities as soon as you have the CO2 sensor attached to your server
+### Option A: HACS
+ 
+1. Open HACS, search for **airco2ntrol** and install it
+2. Restart Home Assistant
+3. Go to **Settings -> Integrations -> Add Integration**, search for `co2` and select **airco2ntrol**
+4. Optionally enter a custom device path (e.g. `/dev/airco2ntrol`), or leave empty for auto-discovery
+5. Once your CO2 sensor is attached, the integration will create 3 entities automatically
+
+ 
+### Option B: Manual Installation
+ 
+1. Copy the `custom_components/airco2ntrol` folder to `config/custom_components/airco2ntrol/`
+   *(Use the Samba or SSH/SFTP add-on to access your config folder)*
+2. Restart Home Assistant
+3. Go to **Settings -> Integrations -> Add Integration**, search for `co2` and select **airco2ntrol**
+4. Optionally enter a custom device path (e.g. `/dev/airco2ntrol`), or leave empty for auto-discovery
+5. Once your CO2 sensor is attached, the integration will create 3 entities automatically
 
 ## Docker Setup
 
-When running Home Assistant in Docker, the container needs access to the USB HID device. Instead of using `privileged: true`, you can pass through the device directly.
+When running Home Assistant as [Home Assistant Container](https://www.home-assistant.io/installation/#about-installation-types), the container needs access to the USB HID device. Instead of using `privileged: true`, you can pass through the device directly.
 
 ### Option 1: Direct device mapping
 

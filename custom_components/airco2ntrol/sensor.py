@@ -227,8 +227,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     device_info = DeviceInfo(
         identifiers={(DOMAIN, unique_id or entry.entry_id)},
         name="AirCO2ntrol",
-        manufacturer="TFA Dostmann",
-        model="CO2 Monitor AIRCO2NTROL MINI",
+        manufacturer="zyAura or TFA Dostmann",
+        model="CO2 Monitor AIRCO2NTROL",
     )
 
     async_add_entities([
